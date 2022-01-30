@@ -1,50 +1,41 @@
 import firebase from "firebase/app";
 import "firebase/firestore"
 import Script from "next/script";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 
 /** @type {firebase} */
 
 
 export default function Webcam() {
-    useEffect(() => {
-        initiateconnection();
+    
+    useEffect(() => {        
+        //initiateconnection();
+        
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        setfirestore(firebase.firestore());
+        setpc(new RTCPeerConnection(servers));
+        console.log("Connection intialised");
+        console.log(process.env.DB_HOST);
     }, []);
 
     const localstreamRef = useRef();
     const remotestreamRef = useRef();
-    var pc;
-
-    var firestore;
-    var passcode = "00000";
-
-
+    //var pc;
+    
+    const [passcode, setpasscode] = useState("");
+    const [pc, setpc] = useState("");
+    const [firestore, setfirestore] = useState("");
 
 
     // Your web app's Firebase configuration
     // For Firebase JS SDK v7.20.0 and later, measurementId is optional
     const firebaseConfig = {
-        apiKey: "AIzaSyDIMmo5qQeb3TqfR1OkqxWD1BDNgZxz0-Q",
-        authDomain: "fir-rtc-c2f90.firebaseapp.com",
-        projectId: "fir-rtc-c2f90",
-        storageBucket: "fir-rtc-c2f90.appspot.com",
-        messagingSenderId: "1017752011996",
-        appId: "1:1017752011996:web:f7d7816dd1f98d8f4b2019",
-        measurementId: "G-8FVDJGLLMB"
+        //Your own config
       };
-    // Initialize Firebase
-    async function initiateconnection() {
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        } else {
-            firebase.app(); // if already initialized, use that one
-        }
-        firestore = firebase.firestore();
-        console.log("Connection intialised");
-        pc = new RTCPeerConnection(servers);
 
-    }
 
     const servers = {
         iceServers: [
@@ -54,6 +45,17 @@ export default function Webcam() {
         ],
         iceCandidatePoolSize: 20
     }
+    // Initialize Firebase
+    async function initiateconnection() {
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        setfirestore(firebase.firestore());
+        console.log("Connection intialised");
+        //pc = new RTCPeerConnection(servers);
+    }
+
+
 
     //Meida streams for both local and remote video and audio
     let localstream = null;
@@ -78,7 +80,8 @@ export default function Webcam() {
                 remoteStream.addTrack(track);
             });
             console.log("Remote stream added");
-            remotevideo.srcObject = remoteStream;
+            remotestreamRef.current.srcObject = remoteStream;
+            //remotevideo.srcObject = remoteStream;
         }
     }
 
@@ -88,7 +91,7 @@ export default function Webcam() {
         const offerCandidate = callDoc.collection("offerCandidates");
         const answerCandidates = callDoc.collection("answerCandidates");
 
-        passcode = callDoc.id;
+        await setpasscode(callDoc.id);
 
 
         //Add a suitable ice candidate to the collections db in firestore
@@ -102,12 +105,25 @@ export default function Webcam() {
         await pc.setLocalDescription(offerDescription);
         console.log("Offer created");
 
+        const offer = {
+            sdp: offerDescription.sdp,
+            type: offerDescription.type,
+        };
+
+
+        console.log(offer);
+        await callDoc.set({ offer });
+
         //Listen for an answer on the db
         callDoc.onSnapshot((snapshot) => {
             const data = snapshot.data();
-
+            //If we can have to set a remote description, then do so
+            if (!pc.currentRemoteDescription && data.answer) {
+                const answerDecription = new RTCSessionDescription(data.answer);
+                pc.setRemoteDescription(answerDecription);
+            }
         });
-        // When answered, add candidate to peer connection
+        // When answerCandidate is updated, add candidate to peer connection
         answerCandidates.onSnapshot((snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === 'added') {
@@ -116,6 +132,52 @@ export default function Webcam() {
                 }
             });
         });
+    }
+
+    async function answerCall() {
+        const callId = document.getElementById("manualPasscode").value;
+        console.log("Manual passcode is: " + callId);
+        const callDoc = firestore.collection('calls').doc(callId);
+        const offerCandidate = callDoc.collection("offerCandidates");
+        const answerCandidates = callDoc.collection("answerCandidates");
+
+        if(!pc){
+            console.log("Something is wrong");
+        }
+
+        //Add a suitable ice candidate to the collections db in firestore
+        pc.onicecandidate = (event) => {
+            console.log(event.candidate);
+            event.candidate && answerCandidates.add(event.candidate.toJSON());
+        }
+        const callData = (await callDoc.get()).data();
+        console.log("Calldata: "+callData);
+        const offerDecription = new RTCSessionDescription(callData.offer);
+        await pc.setRemoteDescription(offerDecription);
+
+        const answerDescription = await pc.createAnswer();
+        await pc.setLocalDescription(answerDescription);
+
+        const answer = {
+            sdp: answerDescription.sdp,
+            type: answerDescription.type,
+        };
+
+
+        console.log(answer);
+        await callDoc.update({ answer });
+
+        offerCandidate.onSnapshot((snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                console.log(change);
+                if (change.type == "added") {
+                    let data = change.doc.data();
+                    console.log(data);
+                    let candidate = new RTCIceCandidate(data);
+                }
+            });
+        })
+
 
 
     }
@@ -137,6 +199,12 @@ export default function Webcam() {
             <h1>
                 2. Enable webcam and audio
             </h1>
+            <div className="flex flex-column justify-center p-10">
+                <h2 className="p-5">
+                    passcode is {passcode}
+                </h2>
+                <input id="manualPasscode" type="text" value={passcode} onChange={(e) => { setpasscode(e.target.value) }} />
+            </div>
             <div id="streamconnection" className="flex flex-row justify-center p-10" >
                 <button onClick={getLocalStream} className="bg-blue-500 text-white rounded-full p-3">
                     Start webcam and mic
@@ -145,11 +213,12 @@ export default function Webcam() {
             <h1>
                 2. Start / answer call
             </h1>
+
             <div id="streamconnection" className="flex flex-row justify-center p-10" >
                 <button onClick={startCall} className="bg-blue-500 text-white rounded-full p-3">
                     Start call
                 </button>
-                <button className="bg-green-500 text-white rounded-full p-3">
+                <button onClick={answerCall} className="bg-green-500 text-white rounded-full p-3">
                     Answer Call
                 </button>
             </div>
