@@ -2,7 +2,7 @@ import firebase from "firebase/app";
 import "firebase/firestore"
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
-
+ 
 
 /** @type {firebase} */
 
@@ -18,7 +18,7 @@ export default function Webcam() {
         setfirestore(firebase.firestore());
         setpc(new RTCPeerConnection(servers));
         console.log("Connection intialised");
-        console.log(process.env.DB_HOST);
+        console.log(process.env.NEXT_PUBLIC_FIREBASE_APIKEY);
     }, []);
 
     const localstreamRef = useRef();
@@ -33,7 +33,13 @@ export default function Webcam() {
     // Your web app's Firebase configuration
     // For Firebase JS SDK v7.20.0 and later, measurementId is optional
     const firebaseConfig = {
-        //Your own config
+        apiKey: process.env.NEXT_PUBLIC_FIREBASE_APIKEY,
+        authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTHDOMAIN,
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECTID,
+        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGEBUCKET,
+        messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGINGSENDERID,
+        appId: process.env.NEXT_PUBLIC_FIREBASE_APPID,
+        measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMETNID
       };
 
 
@@ -184,44 +190,57 @@ export default function Webcam() {
 
     return (
         <div className='flex flex-col items-center'>
-            <h1 className='text-5xl p-10'>
+            <h1 className='text-5xl p-5'>
                 Work in progress check back soon.
             </h1>
             <div id="videos" className="flex flex-row" >
                 <video ref={localstreamRef} id="hostVideoFeed" autoPlay playsInline />
                 <video ref={remotestreamRef} id="guestVideoFeed" autoPlay playsInline />
             </div>
-            <div className="flex flex-col p-10">1. Initiate a connection
-                <button onClick={initiateconnection} className="bg-blue-500 text-white rounded-full">
-                    Start connection
+                        
+            
+            <div className="flex flex-col items-center">
+                <h1>
+                    1. Enable webcam and audio
+                </h1>
+                <div id="streamconnection" className="flex flex-row justify-center p-5" >
+                    <button onClick={getLocalStream} className="bg-blue-500 text-white rounded-full p-3">
+                        Start webcam and mic
+                    </button>
+                </div>
+                { passcode &&
+                <h2 className="p-0 text-center ">
+                    Passcode is {passcode} <br/>
+                    Send this code to your friend to enable them to join your room.
+                </h2>}
+                
+                
+             </div>            
+             <div className="flex flex-col items-center">
+                <h1 className="p-5">
+                    2. Start / answer call
+                </h1>
+                <input id="manualPasscode" className="rounded-lg border-2 border-orange-300 p-4" type="text" value={passcode} onChange={(e) => { setpasscode(e.target.value) }} />
+                <div id="streamconnection" className="flex flex-row justify-between p-5" >
+                    <button onClick={startCall} className="bg-blue-500 text-white rounded-full px-10 py-5 mr-5">
+                        Start call
+                    </button>
+                    <button onClick={answerCall} className="bg-green-500 text-white rounded-full px-10 py-5">
+                        Answer Call
+                    </button>
+                </div>
+             </div>            
+             <div className="flex flex-col items-center">
+                <h1 className="p-5">
+                    3. Hang up
+                </h1>
+                                
+                <button className="bg-red-500 text-white rounded-full p-5">
+                    Hang up
                 </button>
-            </div>
-            <h1>
-                2. Enable webcam and audio
-            </h1>
-            <div className="flex flex-column justify-center p-10">
-                <h2 className="p-5">
-                    passcode is {passcode}
-                </h2>
-                <input id="manualPasscode" type="text" value={passcode} onChange={(e) => { setpasscode(e.target.value) }} />
-            </div>
-            <div id="streamconnection" className="flex flex-row justify-center p-10" >
-                <button onClick={getLocalStream} className="bg-blue-500 text-white rounded-full p-3">
-                    Start webcam and mic
-                </button>
-            </div>
-            <h1>
-                2. Start / answer call
-            </h1>
-
-            <div id="streamconnection" className="flex flex-row justify-center p-10" >
-                <button onClick={startCall} className="bg-blue-500 text-white rounded-full p-3">
-                    Start call
-                </button>
-                <button onClick={answerCall} className="bg-green-500 text-white rounded-full p-3">
-                    Answer Call
-                </button>
-            </div>
+                
+                
+             </div>            
         </div>
     );
 }
