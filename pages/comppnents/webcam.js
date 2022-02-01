@@ -17,8 +17,7 @@ export default function Webcam() {
         }
         setfirestore(firebase.firestore());
         setpc(new RTCPeerConnection(servers));
-        console.log("Connection intialised");
-        console.log(process.env.NEXT_PUBLIC_FIREBASE_APIKEY);
+        console.log("Connection intialised");        
     }, []);
 
     const localstreamRef = useRef();
@@ -28,6 +27,11 @@ export default function Webcam() {
     const [passcode, setpasscode] = useState("");
     const [pc, setpc] = useState("");
     const [firestore, setfirestore] = useState("");
+
+    const [startWebcamButton, setStartWebcamButton] = useState(true);    
+    const [callButton, setCallButton] = useState(false);    
+    const [hangupButton, setHangupButton] = useState(false);    
+    
 
 
     // Your web app's Firebase configuration
@@ -70,12 +74,12 @@ export default function Webcam() {
 
     //This is the function that is called when the user clicks the button to start the call
     async function getLocalStream() {
-        localstream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        localstream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         remoteStream = new MediaStream();
 
         localstream.getTracks().forEach(track => {
-            console.log(`Adding local stream track: ${track.kind}`);
-            pc.addTrack(track, localstream);
+            console.log(`Found track: ${track.kind}`);            
+            pc.addTrack(track, localstream);                    
         });
         console.log("Local stream added");
         localstreamRef.current.srcObject = localstream;
@@ -89,6 +93,9 @@ export default function Webcam() {
             remotestreamRef.current.srcObject = remoteStream;
             //remotevideo.srcObject = remoteStream;
         }
+        setCallButton(true);
+        setStartWebcamButton(false);
+        console.log("Call button set to true {}", callButton);
     }
 
     async function startCall() {
@@ -127,6 +134,7 @@ export default function Webcam() {
             if (!pc.currentRemoteDescription && data.answer) {
                 const answerDecription = new RTCSessionDescription(data.answer);
                 pc.setRemoteDescription(answerDecription);
+                setHangupButton(true);
             }
         });
         // When answerCandidate is updated, add candidate to peer connection
@@ -183,18 +191,15 @@ export default function Webcam() {
                 }
             });
         })
-
-
-
     }
 
     return (
-        <div className='flex flex-col items-center'>
+        <div className='flex flex-col justify-center items-center'>
             <h1 className='text-5xl p-5'>
                 Work in progress check back soon.
             </h1>
             <div id="videos" className="flex flex-row" >
-                <video ref={localstreamRef} id="hostVideoFeed" autoPlay playsInline />
+                <video ref={localstreamRef} id="hostVideoFeed" autoPlay playsInline muted />
                 <video ref={remotestreamRef} id="guestVideoFeed" autoPlay playsInline />
             </div>
                         
@@ -204,7 +209,7 @@ export default function Webcam() {
                     1. Enable webcam and audio
                 </h1>
                 <div id="streamconnection" className="flex flex-row justify-center p-5" >
-                    <button onClick={getLocalStream} className="bg-blue-500 text-white rounded-full p-3">
+                    <button disabled={!startWebcamButton} onClick={getLocalStream} className="bg-blue-500 disabled:bg-blue-800 disabled:opacity-75 text-white rounded-full p-3">
                         Start webcam and mic
                     </button>
                 </div>
@@ -222,24 +227,21 @@ export default function Webcam() {
                 </h1>
                 <input id="manualPasscode" className="rounded-lg border-2 border-orange-300 p-4" type="text" value={passcode} onChange={(e) => { setpasscode(e.target.value) }} />
                 <div id="streamconnection" className="flex flex-row justify-between p-5" >
-                    <button onClick={startCall} className="bg-blue-500 text-white rounded-full px-10 py-5 mr-5">
+                    <button disabled={!callButton} onClick={startCall} className="bg-blue-500 disabled:bg-blue-800 disabled:opacity-75 text-white rounded-full w-1/2 px-10 py-2 mr-5">
                         Start call
                     </button>
-                    <button onClick={answerCall} className="bg-green-500 text-white rounded-full px-10 py-5">
-                        Answer Call
+                    <button disabled={!passcode} onClick={answerCall} className="bg-green-500 disabled:bg-green-800 disabled:opacity-75 text-white rounded-full w-1/2 px-10 py-2">
+                        Answer call
                     </button>
                 </div>
              </div>            
              <div className="flex flex-col items-center">
-                <h1 className="p-5">
+                <h1 className="p-2">
                     3. Hang up
-                </h1>
-                                
-                <button className="bg-red-500 text-white rounded-full p-5">
+                </h1>                                
+                <button disabled={!hangupButton} className="bg-red-500 disabled:bg-red-800 disabled:opacity-75 text-white rounded-full px-5 py-2">
                     Hang up
-                </button>
-                
-                
+                </button>                                
              </div>            
         </div>
     );
