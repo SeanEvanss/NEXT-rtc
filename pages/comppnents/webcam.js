@@ -95,6 +95,7 @@ export default function Webcam() {
         }
         setCallButton(true);
         setStartWebcamButton(false);
+        setHangupButton(true);
         console.log("Call button set to true {}", callButton);
     }
 
@@ -193,6 +194,21 @@ export default function Webcam() {
         })
     }
 
+    async function hangupCall(){
+        console.log("Call successfulyl ended");
+        pc.close();
+
+        localstreamRef.current.srcObject.getTracks().forEach(track => {
+            console.log(`Found track: ${track.kind}`);            
+            track.stop();
+        });
+
+        remotestreamRef.current.srcObject = null;
+        localstreamRef.current.srcObject = null;
+        
+        setStartWebcamButton(true);        
+    }
+
     return (
         <div className='flex flex-col justify-center items-center'>
             <h1 className='text-5xl p-5'>
@@ -239,7 +255,7 @@ export default function Webcam() {
                 <h1 className="p-2">
                     3. Hang up
                 </h1>                                
-                <button disabled={!hangupButton} className="bg-red-500 disabled:bg-red-800 disabled:opacity-75 text-white rounded-full px-5 py-2">
+                <button disabled={!hangupButton} onClick={hangupCall} className="bg-red-500 disabled:bg-red-800 disabled:opacity-75 text-white rounded-full px-5 py-2">
                     Hang up
                 </button>                                
              </div>            
