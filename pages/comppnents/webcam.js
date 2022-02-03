@@ -132,7 +132,7 @@ export default function Webcam() {
         callDoc.onSnapshot((snapshot) => {
             const data = snapshot.data();
             //If we can have to set a remote description, then do so
-            if (!pc.currentRemoteDescription && data.answer) {
+            if (!pc.currentRemoteDescription && data && data.answer) {
                 const answerDecription = new RTCSessionDescription(data.answer);
                 pc.setRemoteDescription(answerDecription);
                 setHangupButton(true);
@@ -203,10 +203,19 @@ export default function Webcam() {
             track.stop();
         });
 
-        remotestreamRef.current.srcObject = null;
-        localstreamRef.current.srcObject = null;
+        const callId = document.getElementById("manualPasscode").value;
+        await firestore.collection('calls').doc(callId).delete();
         
         setStartWebcamButton(true);        
+        setCallButton(false);
+        setpasscode("");
+
+        remotestreamRef.current.srcObject = null;
+        localstreamRef.current.srcObject = null;        
+
+        //Since we closed the peer connection, we need to restart it with a new instance
+        setpc(new RTCPeerConnection(servers));
+        
     }
 
     return (
