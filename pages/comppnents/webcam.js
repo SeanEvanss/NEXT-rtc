@@ -2,36 +2,36 @@ import firebase from "firebase/app";
 import "firebase/firestore"
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
- 
+
 
 /** @type {firebase} */
 
 
 export default function Webcam() {
-    
-    useEffect(() => {        
+
+    useEffect(() => {
         //initiateconnection();
-        
+
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
         setfirestore(firebase.firestore());
         setpc(new RTCPeerConnection(servers));
-        console.log("Connection intialised");        
+        console.log("Connection intialised");
     }, []);
 
     const localstreamRef = useRef();
     const remotestreamRef = useRef();
     //var pc;
-    
+
     const [passcode, setpasscode] = useState("");
     const [pc, setpc] = useState("");
     const [firestore, setfirestore] = useState("");
 
-    const [startWebcamButton, setStartWebcamButton] = useState(true);    
-    const [callButton, setCallButton] = useState(false);    
-    const [hangupButton, setHangupButton] = useState(false);    
-    
+    const [startWebcamButton, setStartWebcamButton] = useState(true);
+    const [callButton, setCallButton] = useState(false);
+    const [hangupButton, setHangupButton] = useState(false);
+
 
 
     // Your web app's Firebase configuration
@@ -44,17 +44,17 @@ export default function Webcam() {
         messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGINGSENDERID,
         appId: process.env.NEXT_PUBLIC_FIREBASE_APPID,
         measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMETNID
-      };
+    };
 
 
     const servers = {
         iceServers: [
             {
-                urls: ["stun:stun.l.google.com:19302", 'stun:stun2.l.google.com:19302']
-            }
+                urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
+            },
         ],
-        iceCandidatePoolSize: 20
-    }
+        iceCandidatePoolSize: 10,
+    };
     // Initialize Firebase
     async function initiateconnection() {
         if (!firebase.apps.length) {
@@ -68,8 +68,8 @@ export default function Webcam() {
 
 
     //Meida streams for both local and remote video and audio
-    let localstream = null;
-    let remoteStream = null;
+    var localstream = null;
+    var remoteStream = null;
 
 
     //This is the function that is called when the user clicks the button to start the call
@@ -78,8 +78,8 @@ export default function Webcam() {
         remoteStream = new MediaStream();
 
         localstream.getTracks().forEach(track => {
-            console.log(`Found track: ${track.kind}`);            
-            pc.addTrack(track, localstream);                    
+            console.log(`Found track: ${track.kind}`);
+            pc.addTrack(track, localstream);
         });
         console.log("Local stream added");
         localstreamRef.current.srcObject = localstream;
@@ -87,6 +87,7 @@ export default function Webcam() {
 
         pc.ontrack = (event) => {
             event.streams[0].getTracks().forEach(track => {
+                console.log(`Found track: ${track.kind}`);
                 remoteStream.addTrack(track);
             });
             console.log("Remote stream added");
@@ -156,7 +157,7 @@ export default function Webcam() {
         const offerCandidate = callDoc.collection("offerCandidates");
         const answerCandidates = callDoc.collection("answerCandidates");
 
-        if(!pc){
+        if (!pc) {
             console.log("Something is wrong");
         }
 
@@ -166,7 +167,8 @@ export default function Webcam() {
             event.candidate && answerCandidates.add(event.candidate.toJSON());
         }
         const callData = (await callDoc.get()).data();
-        console.log("Calldata: "+callData);
+
+        console.log("Calldata: " + callData);
         const offerDecription = new RTCSessionDescription(callData.offer);
         await pc.setRemoteDescription(offerDecription);
 
@@ -188,34 +190,34 @@ export default function Webcam() {
                 if (change.type == "added") {
                     let data = change.doc.data();
                     console.log(data);
-                    let candidate = new RTCIceCandidate(data);
+                    pc.addIceCandidate(new RTCIceCandidate(data));
                 }
             });
         })
     }
 
-    async function hangupCall(){
+    async function hangupCall() {
         console.log("Call successfulyl ended");
         pc.close();
 
         localstreamRef.current.srcObject.getTracks().forEach(track => {
-            console.log(`Found track: ${track.kind}`);            
+            console.log(`Found track: ${track.kind}`);
             track.stop();
         });
 
         const callId = document.getElementById("manualPasscode").value;
         await firestore.collection('calls').doc(callId).delete();
-        
-        setStartWebcamButton(true);        
+
+        setStartWebcamButton(true);
         setCallButton(false);
         setpasscode("");
 
         remotestreamRef.current.srcObject = null;
-        localstreamRef.current.srcObject = null;        
+        localstreamRef.current.srcObject = null;
 
         //Since we closed the peer connection, we need to restart it with a new instance
         setpc(new RTCPeerConnection(servers));
-        
+
     }
 
     return (
@@ -227,8 +229,8 @@ export default function Webcam() {
                 <video ref={localstreamRef} id="hostVideoFeed" autoPlay playsInline muted />
                 <video ref={remotestreamRef} id="guestVideoFeed" autoPlay playsInline />
             </div>
-                        
-            
+
+
             <div className="flex flex-col items-center">
                 <h1>
                     1. Enable webcam and audio
@@ -238,15 +240,15 @@ export default function Webcam() {
                         Start webcam and mic
                     </button>
                 </div>
-                { passcode &&
-                <h2 className="p-0 text-center ">
-                    Passcode is {passcode} <br/>
-                    Send this code to your friend to enable them to join your room.
-                </h2>}
-                
-                
-             </div>            
-             <div className="flex flex-col items-center">
+                {passcode &&
+                    <h2 className="p-0 text-center ">
+                        Passcode is {passcode} <br />
+                        Send this code to your friend to enable them to join your room.
+                    </h2>}
+
+
+            </div>
+            <div className="flex flex-col items-center">
                 <h1 className="p-5">
                     2. Start / answer call
                 </h1>
@@ -259,15 +261,15 @@ export default function Webcam() {
                         Answer call
                     </button>
                 </div>
-             </div>            
-             <div className="flex flex-col items-center">
+            </div>
+            <div className="flex flex-col items-center">
                 <h1 className="p-2">
                     3. Hang up
-                </h1>                                
+                </h1>
                 <button disabled={!hangupButton} onClick={hangupCall} className="bg-red-500 disabled:bg-red-800 disabled:opacity-75 text-white rounded-full px-5 py-2">
                     Hang up
-                </button>                                
-             </div>            
+                </button>
+            </div>
         </div>
     );
 }
