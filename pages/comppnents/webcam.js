@@ -16,7 +16,13 @@ export default function Webcam() {
             firebase.initializeApp(firebaseConfig);
         }
         setfirestore(firebase.firestore());
-        setpc(new RTCPeerConnection(servers));
+        setpc(new RTCPeerConnection({
+            configuration: {
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: true
+              },
+            servers}));
+
         console.log("Connection intialised");
     }, []);
 
@@ -46,14 +52,22 @@ export default function Webcam() {
         measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMETNID
     };
 
-
-    const servers = {
-        iceServers: [
-            {
-                urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
-            },
-        ],
-        iceCandidatePoolSize: 10,
+    /*
+        const servers = {
+            iceServers: [
+                {
+                    urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
+                },
+            ],
+            iceCandidatePoolSize: 10,
+        };
+    */
+    var servers = { 
+        'iceServers': [
+            { 
+                'urls': 'stun:stun1.l.google.com:19302' 
+            }
+        ] 
     };
     // Initialize Firebase
     async function initiateconnection() {
@@ -74,8 +88,7 @@ export default function Webcam() {
 
     //This is the function that is called when the user clicks the button to start the call
     async function getLocalStream() {
-        localstream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        remoteStream = new MediaStream();
+        localstream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });        
 
         localstream.getTracks().forEach(track => {
             console.log(`Found track: ${track.kind}`);
@@ -84,16 +97,20 @@ export default function Webcam() {
         console.log("Local stream added");
         localstreamRef.current.srcObject = localstream;
 
-
+        remoteStream = new MediaStream();
         pc.ontrack = (event) => {
             event.streams[0].getTracks().forEach(track => {
                 console.log(`Found track: ${track.kind}`);
+                console.log(`${track.id}`);
                 remoteStream.addTrack(track);
             });
             console.log("Remote stream added");
-            remotestreamRef.current.srcObject = remoteStream;
-            //remotevideo.srcObject = remoteStream;
+            remotestreamRef.current.srcObject = remoteStream;            
         }
+        pc.oniceconnectionstatechange = function(){
+            console.log('ICE state: ',pc.iceConnectionState);
+         }
+
         setCallButton(true);
         setStartWebcamButton(false);
         setHangupButton(true);
